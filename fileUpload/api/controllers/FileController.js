@@ -163,9 +163,7 @@ module.exports = {
               const columnName = fieldMappings[key] || key;
               return `"${columnName}" ${assignType(firstObject[key])}`;
             });
-            // const columns = keys.map(
-            //   (key) => `"${key}" ${assignType(firstObject[key])}`
-            // );
+
             const createTableQuery = `CREATE TABLE "${tablename}" (${columns.join(
               ", "
             )})`;
@@ -176,6 +174,7 @@ module.exports = {
               const rawResult = await sails
                 .getDatastore()
                 .sendNativeQuery(createTableQuery);
+
               console.log("Table created successfully:", rawResult);
 
               // Insert values into the created table
