@@ -1,3 +1,5 @@
+let passCount = 0;
+let failCount = 0;
 const Validator = require("validatorjs");
 
 module.exports = {
@@ -20,7 +22,6 @@ module.exports = {
   },
 
   fn: async function (inputs) {
-    
     Validator.register(
       "phoneLength",
       (value, requirement, attribute) => {
@@ -31,6 +32,9 @@ module.exports = {
 
     // Define your validation rules
     const validationRules = {
+      "Given name": "string",
+      "Blood Group": "string",
+      phone: "phoneLength:10",
       id: "integer",
       name: "string",
       user: "string",
@@ -51,8 +55,9 @@ module.exports = {
     const validatedArray = jsonArray.map((item) => {
       const validator = new Validator(item, validationRules);
       const validationPassed = validator.passes();
-
-      if (!validationPassed) {
+      if (validationPassed) {
+        passCount++;
+      } else {
         console.error("Validation errors:", validator.errors.all());
 
         // Replace invalid values with null
@@ -61,8 +66,8 @@ module.exports = {
             item[field] = null;
           }
         }
+        failCount++;
       }
-
       return item;
     });
 
