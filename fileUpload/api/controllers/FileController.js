@@ -2,7 +2,14 @@ const csv = require("convert-csv-to-json");
 const fs = require("fs");
 const path = require("path");
 const xlsx = require("xlsx");
-
+const fieldMappings = {
+  firstname: "Given Name",
+  lastName: "surname",
+  email: "email",
+  contact:"phone",
+  currentaddress: "address",
+  bloodgroup: "Blood Group",
+};
 module.exports = {
   fileUpload: async (req, res) => {
     try {
@@ -35,7 +42,7 @@ module.exports = {
             console.log(headerRow);
             try {
               const createdField = await Fileupload.create({
-                field:headerRow,
+                field: headerRow,
               }).fetch();
               return res.json({
                 fieldNames: createdField,
@@ -112,15 +119,37 @@ module.exports = {
             const jsonArray = csv.fieldDelimiter(",").getJsonFromCsv(filePath);
 
             //validate function using helper
+            // const validatedArray = await sails.helpers.validation(
+            //   jsonArray.map((item) => {
+            //     // Convert integer fields to actual numbers
+            //     const parsedItem = Object.entries(item).reduce(
+            //       (acc, [key, value]) => {
+            //         if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
+            //           acc[key] = parseInt(value, 10);
+            //         } else {
+            //           acc[key] = value;
+            //         }
+            //         return acc;
+            //       },
+            //       {}
+            //     );
+
+            //     return parsedItem;
+            //   })
+            // );
+
+            // console.log("hello",validation.validatedArray.name);
+
             const validatedArray = await sails.helpers.validation(
               jsonArray.map((item) => {
-                // Convert integer fields to actual numbers
                 const parsedItem = Object.entries(item).reduce(
                   (acc, [key, value]) => {
+                    const mappedKey = fieldMappings[key] || key;
+
                     if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
-                      acc[key] = parseInt(value, 10);
+                      acc[mappedKey] = parseInt(value, 10);
                     } else {
-                      acc[key] = value;
+                      acc[mappedKey] = value;
                     }
                     return acc;
                   },
@@ -130,7 +159,8 @@ module.exports = {
                 return parsedItem;
               })
             );
-            console.log(validatedArray);
+
+            // console.log("hello", validatedArray);
 
             //create model
             const tablename = filename;
@@ -149,9 +179,13 @@ module.exports = {
               }
             };
 
-            const columns = keys.map(
-              (key) => `"${key}" ${assignType(firstObject[key])}`
-            );
+            const columns = keys.map((key) => {
+              const columnName = fieldMappings[key] || key;
+              return `"${columnName}" ${assignType(firstObject[key])}`;
+            });
+            // const columns = keys.map(
+            //   (key) => `"${key}" ${assignType(firstObject[key])}`
+            // );
             const createTableQuery = `CREATE TABLE "${tablename}" (${columns.join(
               ", "
             )})`;
@@ -168,6 +202,7 @@ module.exports = {
               for (const item of validatedArray) {
                 const insertValues = keys
                   .map((key) => {
+                    const columnName = fieldMappings[key] || key;
                     if (item[key] === null) {
                       return "NULL";
                     }
@@ -207,13 +242,14 @@ module.exports = {
             //validate function using helper
             const validatedArray = await sails.helpers.validation(
               jsonArray.map((item) => {
-                // Convert integer fields to actual numbers
                 const parsedItem = Object.entries(item).reduce(
                   (acc, [key, value]) => {
+                    const mappedKey = fieldMappings[key] || key;
+
                     if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
-                      acc[key] = parseInt(value, 10);
+                      acc[mappedKey] = parseInt(value, 10);
                     } else {
-                      acc[key] = value;
+                      acc[mappedKey] = value;
                     }
                     return acc;
                   },
@@ -223,7 +259,26 @@ module.exports = {
                 return parsedItem;
               })
             );
-            console.log(validatedArray);
+
+            // const validatedArray = await sails.helpers.validation(
+            //   jsonArray.map((item) => {
+            //     // Convert integer fields to actual numbers
+            //     const parsedItem = Object.entries(item).reduce(
+            //       (acc, [key, value]) => {
+            //         if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
+            //           acc[key] = parseInt(value, 10);
+            //         } else {
+            //           acc[key] = value;
+            //         }
+            //         return acc;
+            //       },
+            //       {}
+            //     );
+
+            //     return parsedItem;
+            //   })
+            // );
+            // console.log(validatedArray);
 
             //create model
             const tablename = filename;
@@ -242,9 +297,10 @@ module.exports = {
               }
             };
 
-            const columns = keys.map(
-              (key) => `"${key}" ${assignType(firstObject[key])}`
-            );
+            const columns = keys.map((key) => {
+              const columnName = fieldMappings[key] || key;
+              return `"${columnName}" ${assignType(firstObject[key])}`;
+            });
             const createTableQuery = `CREATE TABLE "${tablename}" (${columns.join(
               ", "
             )})`;
@@ -261,6 +317,7 @@ module.exports = {
               for (const item of validatedArray) {
                 const insertValues = keys
                   .map((key) => {
+                    const columnName = fieldMappings[key] || key;
                     if (item[key] === null) {
                       return "NULL";
                     }
