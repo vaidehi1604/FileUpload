@@ -6,7 +6,7 @@ const fieldMappings = {
   firstname: "Given Name",
   lastName: "surname",
   email: "email",
-  contact:"phone",
+  contact: "phone",
   currentaddress: "address",
   bloodgroup: "Blood Group",
 };
@@ -119,26 +119,6 @@ module.exports = {
             const jsonArray = csv.fieldDelimiter(",").getJsonFromCsv(filePath);
 
             //validate function using helper
-            // const validatedArray = await sails.helpers.validation(
-            //   jsonArray.map((item) => {
-            //     // Convert integer fields to actual numbers
-            //     const parsedItem = Object.entries(item).reduce(
-            //       (acc, [key, value]) => {
-            //         if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
-            //           acc[key] = parseInt(value, 10);
-            //         } else {
-            //           acc[key] = value;
-            //         }
-            //         return acc;
-            //       },
-            //       {}
-            //     );
-
-            //     return parsedItem;
-            //   })
-            // );
-
-            // console.log("hello",validation.validatedArray.name);
 
             const validatedArray = await sails.helpers.validation(
               jsonArray.map((item) => {
@@ -259,26 +239,6 @@ module.exports = {
                 return parsedItem;
               })
             );
-
-            // const validatedArray = await sails.helpers.validation(
-            //   jsonArray.map((item) => {
-            //     // Convert integer fields to actual numbers
-            //     const parsedItem = Object.entries(item).reduce(
-            //       (acc, [key, value]) => {
-            //         if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
-            //           acc[key] = parseInt(value, 10);
-            //         } else {
-            //           acc[key] = value;
-            //         }
-            //         return acc;
-            //       },
-            //       {}
-            //     );
-
-            //     return parsedItem;
-            //   })
-            // );
-            // console.log(validatedArray);
 
             //create model
             const tablename = filename;
