@@ -4,7 +4,6 @@ const path = require("path");
 const xlsx = require("xlsx");
 
 module.exports = {
-  
   fileUpload: async (req, res) => {
     try {
       req.file("file").upload(
@@ -33,10 +32,10 @@ module.exports = {
             // Extract the header row
             const lines = csvString.split("\n");
             const headerRow = lines[0].split(",");
-
+            console.log(headerRow);
             try {
               const createdField = await Fileupload.create({
-                field: headerRow,
+                field:headerRow,
               }).fetch();
               return res.json({
                 fieldNames: createdField,
