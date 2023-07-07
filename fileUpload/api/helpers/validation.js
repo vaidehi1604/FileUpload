@@ -1,5 +1,6 @@
 let passCount = 0;
 let failCount = 0;
+let total;
 const Validator = require("validatorjs");
 
 module.exports = {
@@ -53,21 +54,25 @@ module.exports = {
     const { jsonArray } = inputs;
     console.log(jsonArray);
     const validatedArray = jsonArray.map((item) => {
+      total = Object.keys(item).length;
       const validator = new Validator(item, validationRules);
       const validationPassed = validator.passes();
-      if (validationPassed) {
-        passCount++;
-      } else {
+      if (!validationPassed)
         console.error("Validation errors:", validator.errors.all());
 
-        // Replace invalid values with null
-        for (let field in validationRules) {
-          if (item.hasOwnProperty(field) && validator.errors.has(field)) {
-            item[field] = null;
-          }
+      // Replace invalid values with null
+      for (let field in validationRules) {
+        if (item.hasOwnProperty(field) && validator.errors.has(field)) {
+          item[field] = null;
+          failCount = failCount + 1;
         }
-        failCount++;
       }
+
+      // console.log(passCount);
+      passCount = total - failCount;
+      console.log("Passcount=", passCount);
+      console.log("Failcount=", failCount);
+      console.log("Total=", total);
       return item;
     });
 
