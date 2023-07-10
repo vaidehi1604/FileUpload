@@ -1,0 +1,88 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Upload File Tutorial</title>
+  </head>
+  <style>
+    .container {
+      text-align: center;
+    }
+
+    .content {
+      margin: auto;
+      padding: 2px;
+    }
+    .form {
+      text-align: center;
+      /* border: 1px solid black; */
+      padding: 5px;
+    }
+    .button {
+      margin-top: 5px;
+      margin: auto;
+      width: 200px;
+      height: 50px;
+      background-color: black;
+      color: white;
+      border: none;
+    }
+  </style>
+  <body>
+    <div
+      class="content container col-sm-12 border"
+      id="choose-files"
+      oncopy="return false"
+      oncut="return false"
+      onpaste="return false"
+    >
+      <div class="row">
+        <form
+          id="uploadForm"
+          class="form"
+          method="post"
+          enctype="multipart/form-data"
+        >
+          <div>
+            <b>File Upload:</b>
+            <input type="file" name="file" id="fileUpload" />
+          </div>
+          <br />
+          <button
+            class="button btn-primary"
+            type="submit"
+            style="border-radius: 4px"
+          >
+            Upload
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const formData = new FormData();
+          const files = document.getElementById("fileUpload").files;
+
+          formData.append("file", files[0]);
+    
+          fetch("http://localhost:1337/file", {
+            method: "POST",
+            body: formData,
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log("Upload successful:", data);
+              // Handle success response as needed
+            })
+            .catch((error) => {
+              console.error("Upload failed:", error);
+              // Handle error response as needed
+            });
+        });
+    </script>
+  </body>
+</html>
