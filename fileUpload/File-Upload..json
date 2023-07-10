@@ -1,0 +1,105 @@
+{
+	"info": {
+		"_postman_id": "9941c6ff-4380-443a-b28a-2077f6421598",
+		"name": "File-Upload",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "25993381",
+		"_collection_link": "https://solar-escape-651922.postman.co/workspace/FileUpload~f266be40-192c-4b94-8c0f-1c3f9e5c7c9f/collection/25993381-9941c6ff-4380-443a-b28a-2077f6421598?action=share&creator=25993381&source=collection_link"
+	},
+	"item": [
+		{
+			"name": "File",
+			"item": [
+				{
+					"name": "File Upload",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/Users/ztlab123/Downloads/users (6).csv"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:1337/file",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1337",
+							"path": [
+								"file"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "file process",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/Users/ztlab123/Downloads/users (1).csv"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:1337/file/process",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1337",
+							"path": [
+								"file",
+								"process"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Data Mapping",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/Users/ztlab123/Downloads/users (1).csv"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:1337/file/process",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1337",
+							"path": [
+								"file",
+								"process"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
