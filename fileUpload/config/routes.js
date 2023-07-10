@@ -11,4 +11,6 @@
 module.exports.routes = {
   "POST /file": "FileController.fileUpload",
   "POST /file/process": "FileController.fileProcessing",
+  "POST /file/mapping": "FileController.fileMapping",
+
 };
