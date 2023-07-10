@@ -10,7 +10,17 @@ const fieldMappings = {
   currentaddress: "address",
   bloodgroup: "Blood Group",
 };
+
+const systemFields = [
+  "Given Name",
+  "surname",
+  "email",
+  "phone",
+  "address",
+  "Blood Group",
+];
 module.exports = {
+  //file uploading
   fileUpload: async (req, res) => {
     try {
       req.file("file").upload(
@@ -84,21 +94,22 @@ module.exports = {
     }
   },
 
-  fileProcessing: async (req, res) => {
+  //field  mapping
+  fileMapping: async (req, res) => {
     try {
       await req.file("file").upload(
         {
           dirname: require("path").resolve(sails.config.appPath, "uploads"),
         },
         async function (err, uploadedFiles) {
-          const file = uploadedFiles[0].filename;
-          const filename = path.parse(file).name;
-
           if (err) return res.serverError(err);
 
           if (uploadedFiles.length === 0) {
             return res.badRequest("No file was uploaded.");
           }
+          const file = uploadedFiles[0].filename;
+          const filename = path.parse(file).name;
+          console.log(filename);
 
           const uploadedFile = uploadedFiles[0];
           const filePath = uploadedFile.fd;
@@ -118,16 +129,33 @@ module.exports = {
             const headerRow = lines[0].split(",");
             const jsonArray = csv.fieldDelimiter(",").getJsonFromCsv(filePath);
 
-            //validate function using helper
+            console.log(jsonArray);
 
             const validatedArray = await sails.helpers.validation(
               jsonArray.map((item) => {
                 const parsedItem = Object.entries(item).reduce(
                   (acc, [key, value]) => {
-                    const mappedKey = fieldMappings[key] || key;
+                    //map field with specific field
+                    const fieldMappingsArray = Object.entries(req.body).map(
+                      ([key, value]) => ({
+                        key,
+                        value: systemFields.includes(value)
+                          ? value
+                          : fieldMappings[key] || key,
+                      })
+                    );
+                    console.log(fieldMappingsArray);
+                    const mappedKey =
+                      fieldMappingsArray.find((field) => field.key === key)
+                        ?.value || key;
 
-                    if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
-                      acc[mappedKey] = parseInt(value, 10);
+                    if (!isNaN(value)) {
+                      // Check if the value is too large to be parsed as an integer
+                      if (Number(value) > Number.MAX_SAFE_INTEGER) {
+                        acc[mappedKey] = value.toString(); // Store the value as a string
+                      } else {
+                        acc[mappedKey] = parseInt(value, 10); // Parse the value as an integer
+                      }
                     } else {
                       acc[mappedKey] = value;
                     }
@@ -135,14 +163,9 @@ module.exports = {
                   },
                   {}
                 );
-
                 return parsedItem;
               })
             );
-
-            // console.log("hello", validatedArray);
-
-            //create model
             const tablename = filename;
             const firstObject = validatedArray[0];
             const keys = Object.keys(firstObject);
@@ -223,10 +246,26 @@ module.exports = {
               jsonArray.map((item) => {
                 const parsedItem = Object.entries(item).reduce(
                   (acc, [key, value]) => {
-                    const mappedKey = fieldMappings[key] || key;
-
-                    if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
-                      acc[mappedKey] = parseInt(value, 10);
+                    //map field with specific field
+                    const fieldMappingsArray = Object.entries(req.body).map(
+                      ([key, value]) => ({
+                        key,
+                        value: systemFields.includes(value)
+                          ? value
+                          : fieldMappings[key] || key,
+                      })
+                    );
+                    console.log(fieldMappingsArray);
+                    const mappedKey =
+                      fieldMappingsArray.find((field) => field.key === key)
+                        ?.value || key;
+                    if (!isNaN(value)) {
+                      // Check if the value is too large to be parsed as an integer
+                      if (Number(value) > Number.MAX_SAFE_INTEGER) {
+                        acc[mappedKey] = value.toString(); // Store the value as a string
+                      } else {
+                        acc[mappedKey] = parseInt(value, 10); // Parse the value as an integer
+                      }
                     } else {
                       acc[mappedKey] = value;
                     }
@@ -234,7 +273,6 @@ module.exports = {
                   },
                   {}
                 );
-
                 return parsedItem;
               })
             );
@@ -315,4 +353,234 @@ module.exports = {
       });
     }
   },
+
+  // fileProcessing: async (req, res) => {
+  //   try {
+  //     await req.file("file").upload(
+  //       {
+  //         dirname: require("path").resolve(sails.config.appPath, "uploads"),
+  //       },
+  //       async function (err, uploadedFiles) {
+  //         const file = uploadedFiles[0].filename;
+  //         const filename = path.parse(file).name;
+
+  //         if (err) return res.serverError(err);
+
+  //         if (uploadedFiles.length === 0) {
+  //           return res.badRequest("No file was uploaded.");
+  //         }
+
+  //         const uploadedFile = uploadedFiles[0];
+  //         const filePath = uploadedFile.fd;
+  //         //check file extension
+  //         const fileExt = uploadedFiles[0].filename;
+  //         const extension = path.extname(fileExt);
+  //         //CSV File
+  //         if (extension === ".csv") {
+  //           // Read the file using fs.readFileSync
+  //           const buffer = fs.readFileSync(filePath);
+  //           const csvString = buffer.toString();
+
+  //           // Convert the CSV string to JSON using convert-csv-to-json
+  //           const lines = csvString.split("\n");
+
+  //           // get file fields
+  //           const headerRow = lines[0].split(",");
+  //           const jsonArray = csv.fieldDelimiter(",").getJsonFromCsv(filePath);
+
+  //           //validate function using helper
+
+  //           const validatedArray = await sails.helpers.validation(
+  //             jsonArray.map((item) => {
+  //               const parsedItem = Object.entries(item).reduce(
+  //                 (acc, [key, value]) => {
+  //                   const mappedKey = fieldMappings[key] || key;
+
+  //                   if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
+  //                     acc[mappedKey] = parseInt(value, 10);
+  //                   } else {
+  //                     acc[mappedKey] = value;
+  //                   }
+  //                   return acc;
+  //                 },
+  //                 {}
+  //               );
+
+  //               return parsedItem;
+  //             })
+  //           );
+
+  //           //create model
+  //           const tablename = filename;
+  //           const firstObject = validatedArray[0];
+  //           const keys = Object.keys(firstObject);
+  //           const values = Object.values(firstObject);
+
+  //           //Define type
+  //           const assignType = (value) => {
+  //             if (typeof value === "string") {
+  //               return "VARCHAR(255) DEFAULT NULL";
+  //             } else if (!isNaN(value) && Number.isInteger(parseInt(value))) {
+  //               return "INT DEFAULT NULL";
+  //             } else {
+  //               return "VARCHAR(255) DEFAULT NULL";
+  //             }
+  //           };
+
+  //           const columns = keys.map((key) => {
+  //             const columnName = fieldMappings[key] || key;
+  //             return `"${columnName}" ${assignType(firstObject[key])}`;
+  //           });
+
+  //           const createTableQuery = `CREATE TABLE "${tablename}" (${columns.join(
+  //             ", "
+  //           )})`;
+  //           console.log(createTableQuery);
+
+  //           try {
+  //             //create table using native query
+  //             const rawResult = await sails
+  //               .getDatastore()
+  //               .sendNativeQuery(createTableQuery);
+
+  //             console.log("Table created successfully:", rawResult);
+
+  //             // Insert values into the created table
+  //             for (const item of validatedArray) {
+  //               const insertValues = keys
+  //                 .map((key) => {
+  //                   const columnName = fieldMappings[key] || key;
+  //                   if (item[key] === null) {
+  //                     return "NULL";
+  //                   }
+  //                   return `'${item[key]}'`;
+  //                 })
+  //                 .join(", ");
+
+  //               const insertValuesQuery = `INSERT INTO "${tablename}" (${keys
+  //                 .map((key) => `"${key}"`)
+  //                 .join(", ")}) VALUES (${insertValues})`;
+  //               const insertResult = await sails
+  //                 .getDatastore()
+  //                 .sendNativeQuery(insertValuesQuery);
+  //               console.log("Values inserted successfully:", insertResult);
+  //             }
+  //           } catch (error) {
+  //             console.error("Failed to create table or insert values:", error);
+  //           }
+
+  //           return res.json({
+  //             data: validatedArray,
+  //           });
+  //         }
+  //         //XLSX File
+  //         else if (extension === ".xlsx") {
+  //           console.log("xml file");
+  //           const workbook = xlsx.readFile(filePath);
+  //           const sheetName = workbook.SheetNames[0]; // Assuming the first sheet is used
+  //           const worksheet = workbook.Sheets[sheetName];
+  //           const excelData = xlsx.utils.sheet_to_json(worksheet, {
+  //             header: 1,
+  //           });
+
+  //           const headerRow = excelData[0];
+  //           const jsonArray = xlsx.utils.sheet_to_json(worksheet);
+
+  //           //validate function using helper
+  //           const validatedArray = await sails.helpers.validation(
+  //             jsonArray.map((item) => {
+  //               const parsedItem = Object.entries(item).reduce(
+  //                 (acc, [key, value]) => {
+  //                   const mappedKey = fieldMappings[key] || key;
+
+  //                   if (!isNaN(value) && Number.isInteger(parseFloat(value))) {
+  //                     acc[mappedKey] = parseInt(value, 10);
+  //                   } else {
+  //                     acc[mappedKey] = value;
+  //                   }
+  //                   return acc;
+  //                 },
+  //                 {}
+  //               );
+
+  //               return parsedItem;
+  //             })
+  //           );
+
+  //           //create model
+  //           const tablename = filename;
+  //           const firstObject = validatedArray[0];
+  //           const keys = Object.keys(firstObject);
+  //           const values = Object.values(firstObject);
+
+  //           //Define type
+  //           const assignType = (value) => {
+  //             if (typeof value === "string") {
+  //               return "VARCHAR(255) DEFAULT NULL";
+  //             } else if (!isNaN(value) && Number.isInteger(parseInt(value))) {
+  //               return "INT DEFAULT NULL";
+  //             } else {
+  //               return "VARCHAR(255) DEFAULT NULL";
+  //             }
+  //           };
+
+  //           const columns = keys.map((key) => {
+  //             const columnName = fieldMappings[key] || key;
+  //             return `"${columnName}" ${assignType(firstObject[key])}`;
+  //           });
+  //           const createTableQuery = `CREATE TABLE "${tablename}" (${columns.join(
+  //             ", "
+  //           )})`;
+  //           console.log(createTableQuery);
+
+  //           try {
+  //             //create table
+  //             const rawResult = await sails
+  //               .getDatastore()
+  //               .sendNativeQuery(createTableQuery);
+  //             console.log("Table created successfully:", rawResult);
+
+  //             // Insert values into the created table
+  //             for (const item of validatedArray) {
+  //               const insertValues = keys
+  //                 .map((key) => {
+  //                   const columnName = fieldMappings[key] || key;
+  //                   if (item[key] === null) {
+  //                     return "NULL";
+  //                   }
+  //                   return `'${item[key]}'`;
+  //                 })
+  //                 .join(", ");
+
+  //               const insertValuesQuery = `INSERT INTO "${tablename}" (${keys
+  //                 .map((key) => `"${key}"`)
+  //                 .join(", ")}) VALUES (${insertValues})`;
+  //               const insertResult = await sails
+  //                 .getDatastore()
+  //                 .sendNativeQuery(insertValuesQuery);
+  //               console.log("Values inserted successfully:", insertResult);
+  //             }
+  //           } catch (error) {
+  //             console.error("Failed to create table or insert values:", error);
+  //           }
+
+  //           return res.json({
+  //             data: validatedArray,
+  //           });
+  //         }
+  //         //Invalid File
+  //         else {
+  //           return res.status(400).send({
+  //             message: "Unsupported File Format",
+  //           });
+  //         }
+  //       }
+  //     );
+  //   } catch (error) {
+  //     return res.status(500).send({
+  //       error: error.message,
+  //       message: "File Not Uploaded!!",
+  //     });
+  //   }
+  // },
 };
