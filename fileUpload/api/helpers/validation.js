@@ -1,6 +1,3 @@
-let passCount = 0;
-let failCount = 0;
-let total;
 const Validator = require("validatorjs");
 
 module.exports = {
@@ -23,31 +20,42 @@ module.exports = {
   },
 
   fn: async function (inputs) {
-    Validator.register(
-      "phoneLength",
-      (value, requirement, attribute) => {
-        return value.toString().length === parseInt(requirement);
-      },
-      "The :attribute must be exactly :length characters long."
-    );
+    let passCount = 0;
+    let failCount = 0;
+    let total = {};
+    Validator.register("Length", (value, requirement, attribute) => {
+      return value.toString().length === parseInt(requirement);
+    });
+
+    Validator.register("uniquePhone", (value, requirement, attribute, data) => {
+      const count = data.filter((item) => item.phone === value).length;
+      return count <= 1 && value.toString().length === parseInt(requirement);
+    });
 
     // Define your validation rules
     const validationRules = {
       "Given name": "string",
       "Blood Group": "string",
-      phone: "phoneLength:10",
+      phone: "Length:10",
       name: "string",
       user: "string",
       surname: "string",
       address: "string",
-      contact: "phoneLength:10",
+      contact: "Length:10",
       bloodgroup: "string",
       email: "email",
       age: "integer",
       description: "string",
-      phoneno: "phoneLength:10",
-      parentno: "phoneLength:10",
+      parentno: "Length:10",
       class: "string",
+      Country: "string",
+      Id: "string",
+      website: "string",
+      Year: "integer",
+      title: "string",
+      "Employee No": "integer",
+      Date: "date",
+      gender: "string",
     };
 
     const { jsonArray } = inputs;
@@ -55,26 +63,46 @@ module.exports = {
     const validatedArray = jsonArray.map((item) => {
       total = Object.keys(item).length;
       const validator = new Validator(item, validationRules);
-      const validationPassed = validator.passes();
-      if (!validationPassed)
-        console.error("Validation errors:", validator.errors.all());
 
-      // Replace invalid values with null
-      for (let field in validationRules) {
-        if (item.hasOwnProperty(field) && validator.errors.has(field)) {
-          item[field] = null;
+      const validationPassed = validator.passes();
+      if (item.hasOwnProperty("email")) {
+        const count = jsonArray.filter((i) => i.email === item.email).length;
+        if (count > 1) {
           failCount = failCount + 1;
+          item.email = null;
         }
       }
-
-      // console.log(passCount);
-      passCount = total - failCount;
-      console.log("Passcount=", passCount);
-      console.log("Failcount=", failCount);
-      console.log("Total=", total);
+      if (!validationPassed) {
+        console.error(
+          "Validation errors:",
+          // failCount++,
+          validator.errors.all()
+        );
+        console.log(failCount);
+        // Replace invalid values with null
+        for (let field in validationRules) {
+          if (item.hasOwnProperty(field) && validator.errors.has(field)) {
+            // failCount[field] = (failCount[field] || 0) + 1;
+            failCount = failCount + 1;
+            item[field] = null;
+          }
+        }
+      }
       return item;
     });
 
-    return validatedArray;
+    const Total = total * validatedArray.length;
+
+    passCount = Total - failCount;
+    console.log("Passcount=", passCount);
+    console.log("Failcount=", failCount);
+    console.log("Total=", total * validatedArray.length);
+    const validatedata = {
+      pass: passCount,
+      fail: failCount,
+      Total: Total,
+      validatedArray: validatedArray,
+    };
+    return validatedata;
   },
 };

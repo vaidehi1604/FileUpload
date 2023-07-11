@@ -11,6 +11,15 @@ const systemFields = [
   "address",
   "Blood Group",
   "Description",
+  "Country",
+  "Id",
+  "website",
+  "Year",
+  "Industry",
+  "Employee No",
+  "Date",
+  "gender",
+  "title",
 ];
 module.exports = {
   //file uploading
@@ -28,13 +37,14 @@ module.exports = {
           }
           const filedata = uploadedFiles[0].filename;
           const filename = path.parse(filedata).name;
-          console.log(filename);
-
+          // console.log(filename);
           const uploadedFile = uploadedFiles[0];
           const filePath = uploadedFile.fd;
 
           const file = uploadedFiles[0].filename;
           const extension = path.extname(file);
+
+          const fileUpload = await Fileupload.findOne({ fileName: filename });
           //csv file uploaded
           if (extension === ".csv") {
             // Read the file using fs.readFileSync
@@ -46,17 +56,34 @@ module.exports = {
             const lines = csvString.split("\n");
             const headerRow = lines[0].split(",");
             const jsonArray = csv.fieldDelimiter(",").getJsonFromCsv(filePath);
-            console.log(jsonArray);
-            try {
-              const createdField = await Fileupload.create({
-                data: jsonArray,
-                fileName: filename,
-              }).fetch();
-              return res.json({
-                fieldNames: createdField,
-              });
-            } catch (error) {
-              return res.serverError(error);
+
+            // console.log(fileUpload);
+
+            if (fileUpload) {
+              try {
+                const updateFile = await Fileupload.updateOne({
+                  fileName: filename,
+                }).set({ data: jsonArray });
+                return res.send({
+                  message: "Data updated successfully!!",
+                  updateFile: updateFile,
+                });
+              } catch (error) {
+                return res.serverError(error);
+              }
+            } else {
+              try {
+                const createdField = await Fileupload.create({
+                  data: jsonArray,
+                  fileName: filename,
+                }).fetch();
+                return res.json({
+                  message: "Data Added Successfully!!",
+                  fieldNames: createdField,
+                });
+              } catch (error) {
+                return res.serverError(error);
+              }
             }
           } else if (extension === ".xlsx") {
             const workbook = xlsx.readFile(filePath);
@@ -68,16 +95,31 @@ module.exports = {
 
             const headerRow = excelData[0];
             const jsonArray = xlsx.utils.sheet_to_json(worksheet);
-            try {
-              const createdField = await Fileupload.create({
-                data: jsonArray,
-                fileName: filename,
-              }).fetch();
-              return res.json({
-                fieldNames: createdField,
-              });
-            } catch (error) {
-              return res.serverError(error);
+            if (fileUpload) {
+              try {
+                const updateFile = await Fileupload.updateOne({
+                  fileName: filename,
+                }).set({ data: jsonArray });
+                return res.send({
+                  message: "Data updated successfully!!",
+                  updateFile: updateFile,
+                });
+              } catch (error) {
+                return res.serverError(error);
+              }
+            } else {
+              try {
+                const createdField = await Fileupload.create({
+                  data: jsonArray,
+                  fileName: filename,
+                }).fetch();
+                return res.json({
+                  message: "Data Added Successfully!!",
+                  fieldNames: createdField,
+                });
+              } catch (error) {
+                return res.serverError(error);
+              }
             }
           } else {
             return res.status(400).send({
@@ -114,7 +156,7 @@ module.exports = {
         jsonArray.map((item) => {
           const parsedItem = Object.entries(item).reduce(
             (acc, [key, value]) => {
-              //map field with specific field
+              // map field with specific field
               const fieldMappingsArray = Object.entries(req.body).map(
                 ([key, value]) => ({
                   key,
@@ -131,11 +173,15 @@ module.exports = {
                 // Check if the value is too large to be parsed as an integer
                 if (Number(value) > Number.MAX_SAFE_INTEGER) {
                   acc[mappedKey] = value.toString(); // Store the value as a string
-                } else {
+                } else if (mappedKey === "Year") {
                   acc[mappedKey] = parseInt(value, 10); // Parse the value as an integer
+                } else {
+                  acc[mappedKey] = parseInt(value, 10);
                 }
               } else {
-                acc[mappedKey] = value;
+                // Handle string values with special characters
+                acc[mappedKey] =
+                  typeof value === "string" ? value.replace(/'/g, "''") : value;
               }
               return acc;
             },
@@ -144,19 +190,35 @@ module.exports = {
           return parsedItem;
         })
       );
-
+      // console.log(validatedArray.validatedArray);
       console.log(validatedArray);
       const tablename = filename;
-      const firstObject = validatedArray[0];
+      const firstObject = validatedArray.validatedArray[0];
       const keys = Object.keys(firstObject);
       const values = Object.values(firstObject);
+
+      const checkTableQuery = `
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_name = '${tablename}'
+      )`;
+      const checkTableResult = await sails
+        .getDatastore()
+        .sendNativeQuery(checkTableQuery);
+
+      if (checkTableResult.rows[0].exists) {
+        // Table exists, drop the existing table
+        const dropTableQuery = `DROP TABLE "${tablename}"`;
+        await sails.getDatastore().sendNativeQuery(dropTableQuery);
+      }
 
       //Define type
       const assignType = (value) => {
         if (typeof value === "string") {
           return "VARCHAR(255) DEFAULT NULL";
         } else if (!isNaN(value) && Number.isInteger(parseInt(value))) {
-          return "INT DEFAULT NULL";
+          return "BIGINT DEFAULT NULL";
         } else {
           return "VARCHAR(255) DEFAULT NULL";
         }
@@ -170,7 +232,7 @@ module.exports = {
       const createTableQuery = `CREATE TABLE "${tablename}" (${columns.join(
         ", "
       )})`;
-      console.log(createTableQuery);
+      // console.log(createTableQuery);
 
       try {
         //create table using native query
@@ -178,10 +240,10 @@ module.exports = {
           .getDatastore()
           .sendNativeQuery(createTableQuery);
 
-        console.log("Table created successfully:", rawResult);
+        // console.log("Table created successfully:", rawResult);
 
         // Insert values into the created table
-        for (const item of validatedArray) {
+        for (const item of validatedArray.validatedArray) {
           const insertValues = keys
             .map((key) => {
               const columnName = headerRow[key] || key;
