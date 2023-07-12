@@ -140,7 +140,6 @@ module.exports = {
   fileMapping: async (req, res) => {
     try {
       const fileData = await Fileupload.findOne({ id: Number(req.body.id) });
-      // log
       if (!fileData) {
         return res.notFound("Filedata Not Found");
       }
@@ -195,7 +194,6 @@ module.exports = {
       const tablename = filename;
       const firstObject = validatedArray.validatedArray[0];
       const keys = Object.keys(firstObject);
-      const values = Object.values(firstObject);
 
       const checkTableQuery = `
       SELECT EXISTS (
