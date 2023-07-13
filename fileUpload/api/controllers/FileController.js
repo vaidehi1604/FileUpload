@@ -19,6 +19,7 @@ const systemFields = [
   "Date",
   "Gender",
   "Title",
+  "Industry",
 ];
 module.exports = {
   //file uploading
@@ -145,7 +146,6 @@ module.exports = {
       //get file name
       const filename = fileData.fileName;
 
-      console.log(req.body);
       const validatedArray = await sails.helpers.validation(
         jsonArray.map((item) => {
           const parsedItem = {};
@@ -180,9 +180,7 @@ module.exports = {
               } else {
                 // Handle string values with special characters
                 parsedItem[mappedKey] =
-                  typeof parsedItem[mappedKey] === "string"
-                    ? parsedItem[mappedKey].concat(value.replace(/'/g, "''"))
-                    : value;
+                  typeof value === "string" ? value.replace(/'/g, "''") : value;
               }
             }
           });
@@ -229,10 +227,10 @@ module.exports = {
 
       const createTableQuery = `CREATE TABLE "${tablename}" (${columns.join(
         ", "
-      )})`;
+      )}, ref_id INTEGER REFERENCES "Fileupload"(id))`;
 
       try {
-        //create table using native query
+        // Create table using native query
         const rawResult = await sails
           .getDatastore()
           .sendNativeQuery(createTableQuery);
@@ -251,11 +249,11 @@ module.exports = {
 
           const insertValuesQuery = `INSERT INTO "${tablename}" (${keys
             .map((key) => `"${key}"`)
-            .join(", ")}) VALUES (${insertValues})`;
+            .join(", ")}, ref_id) VALUES (${insertValues}, $1)`;
 
           const insertResult = await sails
             .getDatastore()
-            .sendNativeQuery(insertValuesQuery);
+            .sendNativeQuery(insertValuesQuery, [req.body.id]);
           console.log("Values inserted successfully:", insertResult);
         }
       } catch (error) {

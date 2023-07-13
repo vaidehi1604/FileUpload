@@ -11,5 +11,6 @@
 module.exports.routes = {
   "POST /file": "FileController.fileUpload",
   "POST /file/mapping": "FileController.fileMapping",
-
+  // store data
+  "POST /data": "DataStoreController.storeData",
 };
