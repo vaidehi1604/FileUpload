@@ -5,21 +5,20 @@ const xlsx = require("xlsx");
 
 const systemFields = [
   "Given Name",
-  "surname",
-  "email",
-  "phone",
-  "address",
+  "Surname",
+  "Email",
+  "Phone",
+  "Address",
   "Blood Group",
   "Description",
   "Country",
   "Id",
-  "website",
+  "Website",
   "Year",
-  "Industry",
   "Employee No",
   "Date",
-  "gender",
-  "title",
+  "Gender",
+  "Title",
 ];
 module.exports = {
   //file uploading
@@ -30,37 +29,32 @@ module.exports = {
           dirname: require("path").resolve(sails.config.appPath, "uploads"),
         },
         async function (err, uploadedFiles) {
+          //server error
           if (err) return res.serverError(err);
 
+          //if file empty then through error
           if (uploadedFiles.length === 0) {
             return res.badRequest("No file was uploaded.");
           }
+          // file name
           const filedata = uploadedFiles[0].filename;
           const filename = path.parse(filedata).name;
-          // console.log(filename);
+          // file path
           const uploadedFile = uploadedFiles[0];
           const filePath = uploadedFile.fd;
-
+          //file extension
           const file = uploadedFiles[0].filename;
           const extension = path.extname(file);
-
+          //check file data already exists
           const fileUpload = await Fileupload.findOne({ fileName: filename });
           //csv file uploaded
           if (extension === ".csv") {
-            // Read the file using fs.readFileSync
-            const buffer = fs.readFileSync(filePath);
-            // Convert the buffer to a string
-            const csvString = buffer.toString();
-
-            // Extract the header row
-            const lines = csvString.split("\n");
-            const headerRow = lines[0].split(",");
+            //get data in json form
             const jsonArray = csv.fieldDelimiter(",").getJsonFromCsv(filePath);
-
-            // console.log(fileUpload);
-
+            //if file already exist data updated otherwise new data created
             if (fileUpload) {
               try {
+                //data update
                 const updateFile = await Fileupload.updateOne({
                   fileName: filename,
                 }).set({ data: jsonArray });
@@ -77,7 +71,7 @@ module.exports = {
                   data: jsonArray,
                   fileName: filename,
                 }).fetch();
-                return res.json({
+                return res.send({
                   message: "Data Added Successfully!!",
                   fieldNames: createdField,
                 });
@@ -89,12 +83,9 @@ module.exports = {
             const workbook = xlsx.readFile(filePath);
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const excelData = xlsx.utils.sheet_to_json(worksheet, {
-              header: 1,
-            });
-
-            const headerRow = excelData[0];
+            //get xlsx data
             const jsonArray = xlsx.utils.sheet_to_json(worksheet);
+            //if file already exist data updated otherwise new data created
             if (fileUpload) {
               try {
                 const updateFile = await Fileupload.updateOne({
@@ -118,7 +109,9 @@ module.exports = {
                   fieldNames: createdField,
                 });
               } catch (error) {
-                return res.serverError(error);
+                return res.status(400).send({
+                  message: "Data Not Added!!",
+                });
               }
             }
           } else {
@@ -139,62 +132,69 @@ module.exports = {
   //field  mapping
   fileMapping: async (req, res) => {
     try {
+      //get main file data
       const fileData = await Fileupload.findOne({ id: Number(req.body.id) });
+      //file data not found
       if (!fileData) {
         return res.notFound("Filedata Not Found");
       }
-      console.log(fileData);
+      //get only file field
       const headerRow = Object.keys(fileData.data[0]);
-      console.log(headerRow);
+      //get file data in json form
       const jsonArray = fileData.data;
-      console.log(jsonArray);
+      //get file name
       const filename = fileData.fileName;
-      console.log(filename);
 
+      console.log(req.body);
       const validatedArray = await sails.helpers.validation(
         jsonArray.map((item) => {
-          const parsedItem = Object.entries(item).reduce(
-            (acc, [key, value]) => {
-              // map field with specific field
-              const fieldMappingsArray = Object.entries(req.body).map(
-                ([key, value]) => ({
-                  key,
-                  value: systemFields.includes(value)
-                    ? value
-                    : headerRow[key] || key,
-                })
-              );
-              const mappedKey =
-                fieldMappingsArray.find((field) => field.key === key)?.value ||
-                key;
+          const parsedItem = {};
+
+          // map field with specific field
+          const fieldMappingsArray = Object.entries(req.body).map(
+            ([key, value]) => ({
+              key,
+              value: systemFields.includes(value)
+                ? value
+                : headerRow[key] || key,
+            })
+          );
+
+          Object.entries(item).forEach(([key, value]) => {
+            // Find the mapped key from the fieldMappingsArray
+            const fieldMapping = fieldMappingsArray.find(
+              (field) => field.key === key
+            );
+
+            if (fieldMapping) {
+              const mappedKey = fieldMapping.value;
 
               if (!isNaN(value)) {
                 // Check if the value is too large to be parsed as an integer
                 if (Number(value) > Number.MAX_SAFE_INTEGER) {
-                  acc[mappedKey] = value.toString(); // Store the value as a string
-                } else if (mappedKey === "Year") {
-                  acc[mappedKey] = parseInt(value, 10); // Parse the value as an integer
+                  // Store the value as a string
+                  parsedItem[mappedKey] = value.toString();
                 } else {
-                  acc[mappedKey] = parseInt(value, 10);
+                  parsedItem[mappedKey] = parseInt(value, 10);
                 }
               } else {
                 // Handle string values with special characters
-                acc[mappedKey] =
-                  typeof value === "string" ? value.replace(/'/g, "''") : value;
+                parsedItem[mappedKey] =
+                  typeof parsedItem[mappedKey] === "string"
+                    ? parsedItem[mappedKey].concat(value.replace(/'/g, "''"))
+                    : value;
               }
-              return acc;
-            },
-            {}
-          );
+            }
+          });
+
           return parsedItem;
         })
       );
-      // console.log(validatedArray.validatedArray);
-      console.log(validatedArray);
       const tablename = filename;
       const firstObject = validatedArray.validatedArray[0];
       const keys = Object.keys(firstObject);
 
+      //if table already exist then drop table and add a new data to database
       const checkTableQuery = `
       SELECT EXISTS (
         SELECT 1
@@ -230,15 +230,12 @@ module.exports = {
       const createTableQuery = `CREATE TABLE "${tablename}" (${columns.join(
         ", "
       )})`;
-      // console.log(createTableQuery);
 
       try {
         //create table using native query
         const rawResult = await sails
           .getDatastore()
           .sendNativeQuery(createTableQuery);
-
-        // console.log("Table created successfully:", rawResult);
 
         // Insert values into the created table
         for (const item of validatedArray.validatedArray) {
@@ -255,6 +252,7 @@ module.exports = {
           const insertValuesQuery = `INSERT INTO "${tablename}" (${keys
             .map((key) => `"${key}"`)
             .join(", ")}) VALUES (${insertValues})`;
+
           const insertResult = await sails
             .getDatastore()
             .sendNativeQuery(insertValuesQuery);

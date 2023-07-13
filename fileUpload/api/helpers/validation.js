@@ -27,62 +27,45 @@ module.exports = {
       return value.toString().length === parseInt(requirement);
     });
 
-    Validator.register("uniquePhone", (value, requirement, attribute, data) => {
-      const count = data.filter((item) => item.phone === value).length;
-      return count <= 1 && value.toString().length === parseInt(requirement);
-    });
-
     // Define your validation rules
     const validationRules = {
       "Given name": "string",
+      Surname: "string",
+      Email: "email",
+      Phone: "Length:10",
+      Address: "string",
       "Blood Group": "string",
-      phone: "Length:10",
-      name: "string",
-      user: "string",
-      surname: "string",
-      address: "string",
-      contact: "Length:10",
-      bloodgroup: "string",
-      email: "email",
-      age: "integer",
-      description: "string",
-      parentno: "Length:10",
-      class: "string",
+      Description: "string",
       Country: "string",
       Id: "string",
-      website: "string",
+      Website: "string",
       Year: "integer",
-      title: "string",
       "Employee No": "integer",
       Date: "date",
-      gender: "string",
+      Gender: "string",
+      Title: "string",
     };
 
     const { jsonArray } = inputs;
-    console.log(jsonArray);
+
     const validatedArray = jsonArray.map((item) => {
       total = Object.keys(item).length;
       const validator = new Validator(item, validationRules);
 
       const validationPassed = validator.passes();
-      if (item.hasOwnProperty("email")) {
-        const count = jsonArray.filter((i) => i.email === item.email).length;
+      if (item.hasOwnProperty("Email")) {
+        const count = jsonArray.filter((i) => i.Email === item.Email).length;
         if (count > 1) {
           failCount = failCount + 1;
-          item.email = null;
+          item.Email = null;
         }
       }
       if (!validationPassed) {
-        console.error(
-          "Validation errors:",
-          // failCount++,
-          validator.errors.all()
-        );
+        console.error("Validation errors:", validator.errors.all());
         console.log(failCount);
         // Replace invalid values with null
         for (let field in validationRules) {
           if (item.hasOwnProperty(field) && validator.errors.has(field)) {
-            // failCount[field] = (failCount[field] || 0) + 1;
             failCount = failCount + 1;
             item[field] = null;
           }
@@ -94,9 +77,7 @@ module.exports = {
     const Total = total * validatedArray.length;
 
     passCount = Total - failCount;
-    console.log("Passcount=", passCount);
-    console.log("Failcount=", failCount);
-    console.log("Total=", total * validatedArray.length);
+
     const validatedata = {
       pass: passCount,
       fail: failCount,
