@@ -44,6 +44,7 @@ module.exports = {
       Date: "date",
       Gender: "string",
       Title: "string",
+      Industry: "string",
     };
 
     const { jsonArray } = inputs;
