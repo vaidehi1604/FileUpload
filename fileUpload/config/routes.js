@@ -13,4 +13,8 @@ module.exports.routes = {
   "POST /file/mapping": "FileController.fileMapping",
   // store data
   "POST /data": "DataStoreController.storeData",
+  "POST /store": "DataStoreController.setData",
+  // createTable
+
+  "POST /create": "DataStoreController.createTable",
 };
