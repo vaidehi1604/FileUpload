@@ -70,6 +70,30 @@ module.exports = {
               .sendNativeQuery(insertDataQuery, [jsonArrayString]);
 
             return res.send("data added");
+          } else if (extension === ".xlsx") {
+            const workbook = xlsx.readFile(filePath);
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            //get xlsx data
+            const jsonArray = xlsx.utils.sheet_to_json(worksheet);
+            console.log(jsonArray);
+            const jsonArrayString = JSON.stringify(jsonArray);
+
+            const createGenericTableQuery = `CREATE TABLE IF NOT EXISTS generic_table (data varchar)`;
+            const createGenericTableResult = await sails
+              .getDatastore()
+              .sendNativeQuery(createGenericTableQuery);
+
+            const insertDataQuery = `INSERT INTO generic_table (data) VALUES ($1)`;
+            const insertResult = await sails
+              .getDatastore()
+              .sendNativeQuery(insertDataQuery, [jsonArrayString]);
+
+            return res.send("data added");
+          } else {
+            return res.status(400).send({
+              message: "Unsupported File Format",
+            });
           }
         }
       );
@@ -247,243 +271,206 @@ module.exports = {
 
   setData: async (req, res) => {
     try {
-      // const genericDataQuery = "SELECT * FROM generic_table LIMIT 1";
-      // const queryResult = await sails
-      //   .getDatastore()
-      //   .sendNativeQuery(genericDataQuery);
-      // const row = queryResult.rows[0];
-      // const fieldNames = Object.keys(row);
-      // // const headerRow = Object.keys(jsonArray[0]);
-      // const headerRow = Object.keys(rows[0]);
-      // console.log(fieldNames);
-      console.log(1);
-      const getDataQuery = "SELECT data FROM generic_table LIMIT 1";
-      const queryResult = await sails
+      //check table exists or not
+      const tableName = "generic_table";
+      const tableExistsQuery = `
+          SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_name = $1
+          )
+        `;
+      const tableExistsResult = await sails
         .getDatastore()
-        .sendNativeQuery(getDataQuery);
-      const row = queryResult.rows[0];
-      const dataArray = row.data;
+        .sendNativeQuery(tableExistsQuery, [tableName]);
 
-      const dataFieldValues = dataArray.map((obj) => obj.data);
+      const tableExists = tableExistsResult.rows[0].exists;
+      //if table exist then data store into databse
+      if (tableExists) {
+        //get generic_table data
+        const getDataQuery = "SELECT data FROM generic_table LIMIT 1";
+        const queryResult = await sails
+          .getDatastore()
+          .sendNativeQuery(getDataQuery);
 
-      console.log(dataFieldValues);
-      console.log(dataArray);
-      return res.send(dataArray);
-      //       const validatedArray = await sails.helpers.validation(
-      //         jsonArray.map((item) => {
-      //           const parsedItem = {};
+        const row = queryResult.rows[0];
+        //get data array
+        const dataArray = row.data;
+        const jsonArray = JSON.parse(dataArray);
+        // get first field for headerRow
+        const firstObjects = jsonArray[0];
+        const headerRow = Object.keys(firstObjects);
 
-      //           // map field with specific field
-      //           const fieldMappingsArray = Object.entries(req.body).map(
-      //             ([key, value]) => ({
-      //               key,
-      //               value: systemFields.includes(value)
-      //                 ? value
-      //                 : headerRow[key] || key,
-      //             })
-      //           );
+        //validate data using validation helper
+        const validatedArray = await sails.helpers.validation(
+          jsonArray.map((item) => {
+            const parsedItem = {};
 
-      //           Object.entries(item).forEach(([key, value]) => {
-      //             // Find the mapped key from the fieldMappingsArray
-      //             const fieldMapping = fieldMappingsArray.find(
-      //               (field) => field.key === key
-      //             );
+            //map field with specific field
+            const fieldMappingsArray = Object.entries(req.body).map(
+              ([key, value]) => ({
+                key,
+                value: systemFields.includes(value)
+                  ? value
+                  : headerRow[key] || key,
+              })
+            );
 
-      //             if (fieldMapping) {
-      //               const mappedKey = fieldMapping.value;
+            Object.entries(item).forEach(([key, value]) => {
+              // Find the mapped key from the fieldMappingsArray
+              const fieldMapping = fieldMappingsArray.find(
+                (field) => field.key === key
+              );
 
-      //               if (!isNaN(value)) {
-      //                 // Check if the value is too large to be parsed as an integer
-      //                 if (Number(value) > Number.MAX_SAFE_INTEGER) {
-      //                   // Store the value as a string
-      //                   parsedItem[mappedKey] = value.toString();
-      //                 } else {
-      //                   parsedItem[mappedKey] = parseInt(value, 10);
-      //                 }
-      //               } else {
-      //                 // Handle string values with special characters
-      //                 parsedItem[mappedKey] =
-      //                   typeof value === "string" ? value.replace(/'/g, "''") : value;
-      //               }
-      //             }
-      //           });
-      //           return parsedItem;
-      //         })
-      //       );
+              if (fieldMapping) {
+                const mappedKey = fieldMapping.value;
 
-      //       //create table
-      //       const firstObject = validatedArray.validatedArray[0];
-      //       const keys = Object.keys(firstObject);
+                if (!isNaN(value)) {
+                  // Check if the value is too large to be parsed as an integer
+                  if (Number(value) > Number.MAX_SAFE_INTEGER) {
+                    // Store the value as a string
+                    parsedItem[mappedKey] = value.toString();
+                  } else {
+                    parsedItem[mappedKey] = parseInt(value, 10);
+                  }
+                } else {
+                  // Handle string values with special characters
+                  parsedItem[mappedKey] =
+                    typeof value === "string"
+                      ? value.replace(/'/g, "''")
+                      : value;
+                }
+              }
+            });
+            return parsedItem;
+          })
+        );
 
-      //       //Define type
-      //       const assignType = (value) => {
-      //         if (typeof value === "string") {
-      //           return "VARCHAR(255) DEFAULT NULL";
-      //         } else if (!isNaN(value) && Number.isInteger(parseInt(value))) {
-      //           return "BIGINT DEFAULT NULL";
-      //         } else {
-      //           return "VARCHAR(255) DEFAULT NULL";
-      //         }
-      //       };
+        const firstObject = validatedArray.validatedArray[0];
+        const keys = Object.keys(firstObject);
+        console.log("key", keys);
 
-      //       const columns = keys.map((key) => {
-      //         const columnName = headerRow[key] || key;
-      //         return `"${columnName}" ${assignType(firstObject[key])}`;
-      //       });
+        // Define type
+        const assignType = (value) => {
+          if (typeof value === "string") {
+            return "VARCHAR(255) DEFAULT NULL";
+          } else if (!isNaN(value) && Number.isInteger(parseInt(value))) {
+            return "BIGINT DEFAULT NULL";
+          } else {
+            return "VARCHAR(255) DEFAULT NULL";
+          }
+        };
 
-      //       const createTableQuery = ` CREATE TABLE IF NOT EXISTS master_table (${columns.join(
-      //         ", "
-      //       )})`;
+        const columns = keys.map((key) => {
+          const columnName = headerRow[key] || key;
+          return `"${columnName}" ${assignType(firstObject[key])}`;
+        });
+        //create table if not exists
+        const createGenericTableQuery = `CREATE TABLE IF NOT EXISTS master_table (${columns.join(
+          ", "
+        )})`;
 
-      //       const existingColumnsQuery = `
-      //   SELECT column_name
-      //   FROM information_schema.columns
-      //   WHERE table_name = 'master_table'
-      // `;
-      //       const existingColumnsResult = await sails
-      //         .getDatastore()
-      //         .sendNativeQuery(existingColumnsQuery);
-      //       const existingColumns = existingColumnsResult.rows.map(
-      //         (row) => row.column_name
-      //       );
+        const createGenericTableResult = await sails
+          .getDatastore()
+          .sendNativeQuery(createGenericTableQuery);
 
-      //       const fieldMappingsArray = Object.entries(req.body).map(
-      //         ([key, value]) => ({
-      //           key,
-      //           value: systemFields.includes(value) ? value : headerRow[key] || key,
-      //         })
-      //       );
+        //find existing column in databse
+        const existingColumnsQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'master_table'
+      `;
 
-      //       const newColumns = [];
-      //       const mappedKeys = fieldMappingsArray.map(
-      //         (fieldMapping) => fieldMapping.value
-      //       );
+        const existingColumnsResult = await sails
+          .getDatastore()
+          .sendNativeQuery(existingColumnsQuery);
+        //get existing column
+        const existingColumns = existingColumnsResult.rows.map(
+          (row) => row.column_name
+        );
+        //find new column
+        const newColumns = keys.filter(
+          (columnName) =>
+            !existingColumns.includes(columnName) &&
+            systemFields.includes(columnName)
+        );
+        // if new column exists alter(modify) table and add new column
+        if (newColumns.length > 0) {
+          const alterTableQuery = `
+          ALTER TABLE master_table 
+          ${newColumns
+            .map((columnName) => `ADD COLUMN "${columnName}" VARCHAR(255)`)
+            .join(", ")}
+        `;
+          await sails.getDatastore().sendNativeQuery(alterTableQuery);
+        }
 
-      //       mappedKeys.forEach((columnName) => {
-      //         if (!existingColumns.includes(columnName)) {
-      //           newColumns.push(columnName);
-      //         }
-      //       });
+        const insertColumns = [...existingColumns, ...newColumns];
 
-      //       if (newColumns.length > 0) {
-      //         const alterTableQuery = `
-      //     ALTER TABLE master_table
-      //     ${newColumns
-      //       .map((columnName) => `ADD COLUMN "${columnName}" VARCHAR(255)`)
-      //       .join(", ")}
-      //   `;
-      //         await sails.getDatastore().sendNativeQuery(alterTableQuery);
-      //       }
+        console.log("insertColumns", insertColumns);
+        //for drop table value inserted or not
+        let valuesInserted = false;
 
-      //       const insertColumns = [...existingColumns, ...mappedKeys];
+        for (const item of validatedArray.validatedArray) {
+          const insertValues = `(${insertColumns
+            .map((columnName) => {
+              const value = item[columnName] || "";
+              // Get the value or an empty string
+              if (insertColumns.includes(columnName) && value === "") {
+                // Convert empty string to NULL for BIGINT columns
+                return "NULL";
+              }
+              return `'${value}'`;
+            })
+            .join(", ")})`;
+          console.log("insertValues", insertValues);
 
-      //       for (const item of validatedArray.validatedArray) {
-      //         const insertValues = `(${insertColumns
-      //           .map((columnName) => `'${item[columnName] || ""}'`)
-      //           .join(", ")})`;
+          const insertDataQuery = `
+          INSERT INTO master_table (${insertColumns
+            .map((columnName) => `"${columnName}"`)
+            .join(", ")})
+          VALUES ${insertValues}
+        `;
+          try {
+            // insert value in database
+            const insertDataResult = await sails
+              .getDatastore()
+              .sendNativeQuery(insertDataQuery);
 
-      //         const insertDataQuery = `
-      //     INSERT INTO master_table (${insertColumns
-      //       .map((columnName) => `"${columnName}"`)
-      //       .join(", ")})
-      //     VALUES ${insertValues}
-      //   `;
+            if (insertDataResult && insertDataResult.rowCount > 0) {
+              valuesInserted = true;
+            }
+            console.log("insertDataResult", insertDataResult);
+          } catch (error) {
+            console.log(error);
+          }
+        }
+        //if data not mapped
+        if (Object.keys(req.body).length === 0) {
+          console.log("hello", Object.keys(req.body));
+          return res.send({
+            message: "Please map data with System Field",
+          });
+        } //if value inserted
+        else if (valuesInserted) {
+          //drop table
+          const dropTableQuery = `DROP TABLE IF EXISTS generic_table`;
+          await sails.getDatastore().sendNativeQuery(dropTableQuery);
 
-      //         const insertDataResult = await sails
-      //           .getDatastore()
-      //           .sendNativeQuery(insertDataQuery);
-      //       }
-      //       return res.send({
-      //         message: "Data Added Successfully!!",
-      //         fieldNames: headerRow,
-      //         fieldValues: jsonArray,
-      //       });
-
-      // try {
-      //   // Create table using native query
-      //   const rawResult = await sails
-      //     .getDatastore()
-      //     .sendNativeQuery(createTableQuery);
-
-      //   // Insert values into the created table
-
-      //   const existingColumnsQuery = `
-      //           SELECT column_name
-      //           FROM information_schema.columns
-      //           WHERE table_name = 'master_table'
-      //         `;
-
-      //   const existingColumnsResult = await sails
-      //     .getDatastore()
-      //     .sendNativeQuery(existingColumnsQuery);
-      //   const existingColumns = existingColumnsResult.rows.map(
-      //     (row) => row.column_name
-      //   );
-      //   console.log("existingColumnsResult", existingColumns);
-
-      //   const newColumns = [];
-      //   const mappedKeys = fieldMappingsArray.map(
-      //     (fieldMapping) => fieldMapping.value
-      //   );
-
-      //   if (mappedKeys.length > 0) {
-      //     const alterTableQuery = `
-      //             ALTER TABLE master_table
-      //             ${newColumns
-      //               .map(
-      //                 (columnName) => `ADD COLUMN "${columnName}" VARCHAR(255)`
-      //               )
-      //               .join(", ")}
-      //           `;
-      //     await sails.getDatastore().sendNativeQuery(alterTableQuery);
-      //   }
-
-      //   const insertColumns = [...existingColumns, ...mappedKeys];
-      //   console.log("hello", insertColumns);
-      //   for (const item of validatedArray.validatedArray) {
-      //     const insertValues = `(${insertColumns
-      //       .map((columnName) => `'${item[columnName] || ""}'`)
-      //       .join(", ")})`;
-
-      //     console.log(insertValues);
-
-      //     const insertDataQuery = `
-      //       INSERT INTO master_table (${insertColumns
-      //         .map((columnName) => `"${columnName}"`)
-      //         .join(", ")})
-      //       VALUES ${insertValues}
-      //     `;
-
-      //     const insertDataResult = await sails
-      //       .getDatastore()
-      //       .sendNativeQuery(insertDataQuery);
-      //   }
-
-      //   //   // for (const item of validatedArray.validatedArray) {
-      //   //   //   const insertValues = keys
-      //   //   //     .map((key) => {
-      //   //   //       const columnName = headerRow[key] || key;
-      //   //   //       if (item[key] === null) {
-      //   //   //         return "NULL";
-      //   //   //       }
-      //   //   //       return `'${item[key]}'`;
-      //   //   //     })
-      //   //   //     .join(", ");
-
-      //   //   //   const insertValuesQuery = `INSERT INTO Master_table (${keys
-      //   //   //     .map((key) => `"${key}"`)
-      //   //   //     .join(", ")}) VALUES (${insertValues})`;
-
-      //   //   //   const insertResult = await sails
-      //   //   //     .getDatastore()
-      //   //   //     .sendNativeQuery(insertValuesQuery);
-      //   //   //   console.log("Values inserted successfully:", insertResult);
-      //   //   // }
-      // } catch (error) {
-      //   console.error("Failed to create table or insert values:", error);
-      // }
-
-      return res.send(validatedArray);
+          return res.send({
+            message: "Data Added Successfully!!",
+            validation: validatedArray,
+          });
+        } else {
+          return res.status(400).send({
+            message: "data not inserted into the master_table.",
+          });
+        }
+      } else {
+        //If Table not found
+        console.log("Table not found: " + tableName);
+        return res.send({ message: "Table does not exist!!" });
+      }
     } catch (error) {
       return res.send(error);
     }
